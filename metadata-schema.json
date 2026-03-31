@@ -1,0 +1,636 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VBCS Page Builder Metadata",
+  "description": "Developer-provided metadata for generating VBCS Redwood pages. Fill in the fields relevant to your page template and pass to the agent.",
+  "type": "object",
+  "required": ["template", "pageName", "pageTitle", "flowName", "appType", "backendType"],
+  "properties": {
+
+    "template": {
+      "type": "string",
+      "enum": ["smart-search-page", "data-management-page", "welcome-page", "general-overview-page", "item-overview-page"],
+      "description": "Redwood page template to use. Determines which skill generates the page."
+    },
+
+    "pageName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "VBCS page ID in kebab-case. Example: 'employee-search', 'project-list'"
+    },
+
+    "pageTitle": {
+      "type": "string",
+      "description": "Display title shown in the page header. Example: 'Employees', 'Project Dashboard'"
+    },
+
+    "pageSubtitle": {
+      "type": "string",
+      "description": "Optional subtitle below the page title."
+    },
+
+    "flowName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "VBCS flow name in kebab-case. Example: 'main', 'employee-management'"
+    },
+
+    "appType": {
+      "type": "string",
+      "enum": ["standalone", "extension"],
+      "description": "standalone = VB app ($application.path), extension = AppUI extension ($extension.path)"
+    },
+
+    "backendType": {
+      "type": "string",
+      "enum": ["adf", "non-adf"],
+      "description": "adf = Oracle Business Objects / Fusion (server-side filtering via SDP+DPV). non-adf = Spring Boot, Node, ORDS custom REST (client-side filtering via ADP)."
+    },
+
+    "layout": {
+      "type": "string",
+      "enum": ["edgeToEdge", "fullWidth", "fixedWidth"],
+      "default": "fullWidth",
+      "description": "Redwood page layout. Most pages use fullWidth."
+    },
+
+    "entity": {
+      "type": "object",
+      "description": "The primary business entity this page works with.",
+      "required": ["name", "keyField"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Entity name in PascalCase. Used for variable naming. Example: 'Employee', 'Program', 'Invoice'"
+        },
+        "keyField": {
+          "type": "string",
+          "description": "Primary key field name from the API response. Example: 'id', 'programId'"
+        },
+        "displayFields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fields to show in card/list templates. Example: ['name', 'department', 'status']"
+        }
+      }
+    },
+
+    "rest": {
+      "type": "object",
+      "description": "REST endpoint configuration. Captures both the physical data store location (baseUrl + endpointPath) and the logical VBCS service connection reference (serviceName + operationId).",
+      "required": ["serviceName", "operationId"],
+      "properties": {
+        "baseUrl": {
+          "type": "string",
+          "description": "Physical REST API base URL. Required when the service connection does not yet exist and needs to be created. Example: 'https://myapp.oraclecloud.com/ic/api/v1', 'https://myords.example.com/ords/myschema', 'https://api.example.com/v2'"
+        },
+        "endpointPath": {
+          "type": "string",
+          "description": "Resource endpoint path appended to baseUrl. Example: '/Employee', '/employees', '/projects'. Combined with baseUrl gives the full REST endpoint: baseUrl + endpointPath."
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "VBCS service connection name that wraps the REST endpoint. Example: 'businessObjects', 'employeeService', 'ordsApi'"
+        },
+        "operationId": {
+          "type": "string",
+          "description": "Operation ID for the GET list (getAll) operation from the OpenAPI spec. Example: 'getall_Employee', 'getEmployees'"
+        },
+        "operations": {
+          "type": "object",
+          "description": "Operation IDs for individual CRUD operations. Required for data management pages that create, update, or delete records. Each maps to an operationId in the service connection's OpenAPI spec.",
+          "properties": {
+            "create": {
+              "type": "string",
+              "description": "POST operation ID for creating a new record. Example: 'create_Employee', 'createEmployee'"
+            },
+            "update": {
+              "type": "string",
+              "description": "PATCH or PUT operation ID for updating an existing record. Example: 'update_Employee', 'patchEmployee'"
+            },
+            "delete": {
+              "type": "string",
+              "description": "DELETE operation ID for removing a record. Example: 'delete_Employee', 'deleteEmployee'"
+            },
+            "getById": {
+              "type": "string",
+              "description": "GET single record operation ID. Used by drawer detail views and drill-down pages. Example: 'get_Employee', 'getEmployee'"
+            }
+          }
+        },
+        "errorResponsePath": {
+          "type": "string",
+          "description": "Dot-notation path to the error message within the REST error response body. Example: 'o:errorDetails[0].detail' (ADF/ORDS), 'message' (Spring Boot), 'detail' (generic REST). Used in failure paths of action chains."
+        },
+        "responseShape": {
+          "type": "object",
+          "description": "Describes the REST response structure.",
+          "properties": {
+            "itemsPath": {
+              "type": "string",
+              "default": "items",
+              "description": "Path to the array of records in the response body. Example: 'items' (ORDS/ADF), 'content' (Spring Boot), '' (raw array)"
+            },
+            "fields": {
+              "type": "array",
+              "description": "Field definitions from the API response.",
+              "items": {
+                "type": "object",
+                "required": ["name", "type"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Field name exactly as it appears in the API response (case-sensitive)."
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean", "date", "object", "array"],
+                    "description": "Field data type."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "Human-readable label for UI display. Defaults to name if omitted."
+                  }
+                }
+              }
+            },
+            "paginationStyle": {
+              "type": "string",
+              "enum": ["offset-limit", "page-size", "none"],
+              "default": "offset-limit",
+              "description": "offset-limit = ORDS ({offset, limit}). page-size = Spring Boot ({page, size}). none = returns all."
+            },
+            "totalField": {
+              "type": "string",
+              "description": "Field in response containing total record count. Example: 'totalResults', 'count'"
+            }
+          }
+        },
+        "requestParams": {
+          "type": "object",
+          "description": "Additional static query or URI params to always include.",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+
+    "search": {
+      "type": "object",
+      "description": "Smart Search configuration. Required when template = 'smart-search-page'.",
+      "properties": {
+        "keywordFields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fields that free-text keyword search applies to. Example: ['firstName', 'lastName', 'email']"
+        },
+        "placeholder": {
+          "type": "string",
+          "default": "Search",
+          "description": "Placeholder text in the search input."
+        },
+        "configFileName": {
+          "type": "string",
+          "description": "Name of the search config JSON file (without path). Example: 'employeeSearchConfig.json'"
+        },
+        "filters": {
+          "type": "array",
+          "description": "Filter definitions for the smart search component.",
+          "items": {
+            "type": "object",
+            "required": ["name", "label", "type", "field"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Filter identifier in PascalCase. Must match across config JSON, searchContext, and $search.filters expressions. Example: 'StatusFilter', 'DepartmentsFilter'"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label shown as the chip text. Example: 'Status', 'Department'"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["SelectSingle", "SelectMultiple", "NumericRange"],
+                "description": "Filter component type."
+              },
+              "field": {
+                "type": "string",
+                "description": "API response field name this filter matches (case-sensitive). Example: 'status', 'department', 'salary'"
+              },
+              "options": {
+                "type": "object",
+                "description": "Required for SelectSingle and SelectMultiple filters.",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "enum": ["static", "dynamic"],
+                    "default": "static",
+                    "description": "static = inline array of {value, label}. dynamic = SDP from related business object."
+                  },
+                  "staticValues": {
+                    "type": "array",
+                    "description": "For source='static'. Array of {value, label} objects.",
+                    "items": {
+                      "type": "object",
+                      "required": ["value", "label"],
+                      "properties": {
+                        "value": { "type": ["string", "number"] },
+                        "label": { "type": "string" }
+                      }
+                    }
+                  },
+                  "dynamicEndpoint": {
+                    "type": "object",
+                    "description": "For source='dynamic'. SDP config for related BO.",
+                    "properties": {
+                      "serviceName": { "type": "string" },
+                      "operationId": { "type": "string" },
+                      "labelField": { "type": "string" },
+                      "valueField": { "type": "string" }
+                    }
+                  }
+                }
+              },
+              "range": {
+                "type": "object",
+                "description": "Required for NumericRange filters.",
+                "properties": {
+                  "min": { "type": "number" },
+                  "max": { "type": "number" },
+                  "defaultStart": { "type": "number" },
+                  "defaultEnd": { "type": "number" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "collection": {
+      "type": "object",
+      "description": "How to display the data collection.",
+      "required": ["displayType"],
+      "properties": {
+        "displayType": {
+          "type": "string",
+          "enum": ["table", "dynamic-table", "list-view", "card-view"],
+          "description": "Component used to display results."
+        },
+        "showCollectionContainer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to wrap collection in oj-sp-collection-container (shows result count)."
+        },
+        "selectionMode": {
+          "type": "string",
+          "enum": ["none", "single", "multiple"],
+          "default": "single"
+        },
+        "scrollPolicy": {
+          "type": "string",
+          "enum": ["loadMoreOnScroll", "scroll"],
+          "default": "loadMoreOnScroll"
+        },
+        "fetchSize": {
+          "type": "number",
+          "default": 25,
+          "description": "Number of records per fetch for infinite scroll."
+        },
+        "columns": {
+          "type": "array",
+          "description": "Column definitions for table or dynamic-table display.",
+          "items": {
+            "type": "object",
+            "required": ["field", "headerText"],
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "API response field name (case-sensitive)."
+              },
+              "headerText": {
+                "type": "string",
+                "description": "Column header label."
+              },
+              "sortable": {
+                "type": "string",
+                "enum": ["enabled", "disabled"],
+                "default": "enabled"
+              },
+              "width": {
+                "type": "string",
+                "description": "Column width. Example: '150px', '20%'"
+              },
+              "template": {
+                "type": "string",
+                "enum": ["text", "date", "currency", "status-badge", "link", "custom"],
+                "default": "text",
+                "description": "Rendering template for the cell content."
+              }
+            }
+          }
+        },
+        "cardLayout": {
+          "type": "object",
+          "description": "Card layout config for card-view display.",
+          "properties": {
+            "titleField": { "type": "string" },
+            "descriptionField": { "type": "string" },
+            "badgeField": { "type": "string" },
+            "initialsField": { "type": "string" },
+            "metadataFields": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "listLayout": {
+          "type": "object",
+          "description": "List layout config for list-view display.",
+          "properties": {
+            "primaryField": { "type": "string" },
+            "secondaryField": { "type": "string" },
+            "tertiaryField": { "type": "string" },
+            "metadataField": { "type": "string" },
+            "avatarField": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "actions": {
+      "type": "object",
+      "description": "Page-level actions (buttons in the header).",
+      "properties": {
+        "primary": {
+          "type": "object",
+          "description": "Primary CTA button.",
+          "properties": {
+            "label": { "type": "string", "description": "Button text. Example: 'Create New'" },
+            "action": {
+              "type": "string",
+              "enum": ["navigate", "drawer", "dialog", "custom"],
+              "description": "What happens on click."
+            },
+            "target": { "type": "string", "description": "Target page/drawer ID for navigation." }
+          }
+        },
+        "secondary": {
+          "type": "array",
+          "description": "Secondary action buttons.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "action": { "type": "string", "enum": ["navigate", "drawer", "dialog", "export", "custom"] },
+              "target": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "navigation": {
+      "type": "object",
+      "description": "Navigation configuration.",
+      "properties": {
+        "parentPage": {
+          "type": "string",
+          "description": "Parent page ID for back navigation. Omit if this is the landing page."
+        },
+        "parentLabel": {
+          "type": "string",
+          "description": "Label shown next to back arrow. Example: 'Dashboard'"
+        },
+        "drillDownPage": {
+          "type": "string",
+          "description": "Page to navigate to on row/card click. Example: 'employee-detail'"
+        },
+        "drillDownParam": {
+          "type": "string",
+          "description": "Parameter name to pass on drill-down. Example: 'employeeId'"
+        },
+        "drillDownField": {
+          "type": "string",
+          "description": "Field from the row data to pass as the parameter value. Example: 'id'"
+        }
+      }
+    },
+
+    "contextSwitcher": {
+      "type": "object",
+      "description": "Context switcher dropdown in the page header.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": { "type": "string" },
+              "label": { "type": "string" }
+            }
+          }
+        },
+        "defaultValue": { "type": "string" }
+      }
+    },
+
+    "dataGrid": {
+      "type": "object",
+      "description": "Data Grid configuration. Required when template = 'data-management-page'.",
+      "required": ["editMode", "pattern"],
+      "properties": {
+        "editMode": {
+          "type": "string",
+          "enum": ["cell-edit", "row-edit", "read-only"],
+          "description": "cell-edit = oj-data-grid with cellEdit mode. row-edit = oj-table with rowEdit mode. read-only = no editing."
+        },
+        "pattern": {
+          "type": "string",
+          "enum": ["data-grid-pattern", "data-collections-organizer-pattern"],
+          "default": "data-grid-pattern",
+          "description": "data-grid-pattern = single grid. data-collections-organizer-pattern = tabs + multiple grids."
+        },
+        "columns": {
+          "type": "array",
+          "description": "Column definitions for the data grid or table.",
+          "items": {
+            "type": "object",
+            "required": ["field", "headerText"],
+            "properties": {
+              "field": { "type": "string", "description": "API field name (case-sensitive)." },
+              "headerText": { "type": "string", "description": "Column header label." },
+              "editable": { "type": "boolean", "default": true, "description": "Whether this column is editable." },
+              "type": {
+                "type": "string",
+                "enum": ["text", "number", "date", "select", "checkbox", "custom"],
+                "default": "text",
+                "description": "Input type when in edit mode."
+              },
+              "width": { "type": "string", "description": "Column width. Example: '150px', '20%'" },
+              "sortable": { "type": "boolean", "default": true },
+              "validation": {
+                "type": "object",
+                "description": "Validation rules for editable columns.",
+                "properties": {
+                  "required": { "type": "boolean", "default": false },
+                  "min": { "type": "number" },
+                  "max": { "type": "number" },
+                  "custom": { "type": "string", "description": "Name of custom validator function." }
+                }
+              },
+              "lov": {
+                "type": "object",
+                "description": "List of Values config for select-type columns.",
+                "properties": {
+                  "serviceName": { "type": "string" },
+                  "operationId": { "type": "string" },
+                  "displayField": { "type": "string" },
+                  "valueField": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "tabs": {
+          "type": "array",
+          "description": "Tab definitions for data-collections-organizer-pattern.",
+          "items": {
+            "type": "object",
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "dataSource": { "type": "string", "description": "SDP variable name for this tab's data." }
+            }
+          }
+        },
+        "columnHeaderFiltering": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, generate per-column header filters on oj-data-grid (ListDataProviderView + filterCriterion). Distinct from Smart Search toolbar filters."
+        },
+        "hideShow": {
+          "type": "object",
+          "description": "Column and row hide/show configuration for oj-data-grid. Adds Hide/Show options to header context menus and supports programmatic control via observables.",
+          "properties": {
+            "columnHidable": {
+              "type": "string",
+              "enum": ["enable", "disable"],
+              "default": "disable",
+              "description": "Adds Hide/Show to column header context menu (header.column.hidable)."
+            },
+            "rowHidable": {
+              "type": "string",
+              "enum": ["enable", "disable"],
+              "default": "disable",
+              "description": "Adds Hide/Show to row header context menu (header.row.hidable)."
+            },
+            "initialHiddenColumns": {
+              "type": "array",
+              "items": { "type": "number" },
+              "default": [],
+              "description": "Column indices hidden on page load. Example: [0, 5]. Set via init chain as new Set([...])."
+            },
+            "initialHiddenRows": {
+              "type": "array",
+              "items": { "type": "number" },
+              "default": [],
+              "description": "Row indices hidden on page load. Example: [0, 7]. Set via init chain as new Set([...])."
+            },
+            "programmaticControl": {
+              "type": "boolean",
+              "default": false,
+              "description": "When true, generate an oj-select-many dropdown for programmatic hide/show alongside the context menu."
+            }
+          }
+        },
+        "dataTransfer": {
+          "type": "object",
+          "description": "Data transfer (clipboard) options for oj-data-grid. Enables cut/copy/paste/fill for spreadsheet-like interactions. Requires edit-mode cellEdit and selection-mode.cell multiple.",
+          "properties": {
+            "cut": {
+              "type": "string",
+              "enum": ["enable", "disable"],
+              "default": "disable",
+              "description": "Enable Ctrl+X / context menu Cut."
+            },
+            "copy": {
+              "type": "string",
+              "enum": ["enable", "disable"],
+              "default": "disable",
+              "description": "Enable Ctrl+C / context menu Copy."
+            },
+            "paste": {
+              "type": "string",
+              "enum": ["enable", "disable"],
+              "default": "disable",
+              "description": "Enable Ctrl+V / context menu Paste. Uses Clipboard API (requires HTTPS)."
+            },
+            "fill": {
+              "type": "string",
+              "enum": ["enable", "disable"],
+              "default": "disable",
+              "description": "Enable drag-to-fill from the corner of a selected cell range."
+            }
+          }
+        }
+      }
+    },
+    "drawer": {
+      "type": "object",
+      "description": "Drawer configuration for the data management page.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "position": {
+          "type": "string",
+          "enum": ["end", "bottom"],
+          "default": "end",
+          "description": "end = side drawer (vertical scroll grids). bottom = bottom drawer (horizontal scroll grids)."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["modal", "inline"],
+          "default": "inline",
+          "description": "modal = content covered. inline = content pushed."
+        },
+        "trigger": {
+          "type": "string",
+          "enum": ["row-click", "toolbar-action", "page-action"],
+          "default": "row-click"
+        },
+        "size": {
+          "type": "string",
+          "enum": ["small", "medium", "large", "extra-large"],
+          "default": "medium"
+        }
+      }
+    },
+    "transactional": {
+      "type": "object",
+      "description": "Transactional workflow configuration (save/cancel/draft).",
+      "properties": {
+        "saveAction": { "type": "boolean", "default": true },
+        "cancelAction": { "type": "boolean", "default": true },
+        "draftAction": { "type": "boolean", "default": false },
+        "insertRow": { "type": "boolean", "default": false },
+        "deleteRow": { "type": "boolean", "default": false },
+        "unsavedChangesDialog": { "type": "boolean", "default": true }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "template": { "const": "smart-search-page" } } },
+      "then": {
+        "required": ["search", "collection", "entity", "rest"]
+      }
+    },
+    {
+      "if": { "properties": { "template": { "const": "data-management-page" } } },
+      "then": {
+        "required": ["dataGrid", "entity", "rest"]
+      }
+    }
+  ]
+}
